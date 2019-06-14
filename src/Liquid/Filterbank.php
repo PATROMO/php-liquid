@@ -12,6 +12,7 @@
 namespace Liquid;
 
 use Liquid\Exception\WrongArgumentException;
+use TypeError;
 
 /**
  * The filter bank is where all registered filters are stored, and where filter invocation is handled
@@ -134,7 +135,7 @@ class Filterbank
 
 		// If we have a callback
 		if (is_callable($class)) {
-			return call_user_func_array($class, $args);
+			return $this->callUserFuncArrayInTryCath($class, $args);
 		}
 
 		// If we have a registered object for the class, use that instead
@@ -144,10 +145,28 @@ class Filterbank
 
 		// If we're calling a function
 		if ($class === false) {
-			return call_user_func_array($name, $args);
+			return $this->callUserFuncArrayInTryCatch($name, $args);
 		}
 
 		// Call a class or an instance method
-		return call_user_func_array(array($class, $name), $args);
+		return $this->callUserFuncArrayInTryCatch(array($class, $name), $args);
+	}
+
+	/**
+	 * This is a wrapper for call_user_func_array() with try/catch
+	 * to cast TypeError in LiquidException.
+	 *
+	 * @param callback $function
+	 * @param array $param_arr
+	 *
+	 * @return mixed
+	 * @throws \Liquid\LiquidException
+	 */
+	private function callUserFuncArrayInTryCatch($function, array $param_arr) {
+		try {
+			return call_user_func_array($function, $param_arr);
+		} catch (TypeError $typeError) {
+			throw new LiquidException($typeError->getMessage(),0,$typeError);
+		}
 	}
 }
